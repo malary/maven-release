@@ -692,7 +692,7 @@ public class DefaultReleaseManagerTest
         {
             releaseDescriptor.setUseReleaseProfile( false );
 
-            releaseManager.perform( releaseDescriptor, new DefaultReleaseEnvironment(), null );
+            releaseManager.perform( releaseDescriptor, new DefaultReleaseEnvironment(), createReactorProjects() );
 
             fail( "commit should have failed" );
         }
@@ -724,7 +724,7 @@ public class DefaultReleaseManagerTest
         {
             releaseDescriptor.setUseReleaseProfile( false );
 
-            releaseManager.perform( releaseDescriptor, new DefaultReleaseEnvironment(), null );
+            releaseManager.perform( releaseDescriptor, new DefaultReleaseEnvironment(), createReactorProjects() );
 
             fail( "commit should have failed" );
         }

@@ -21,7 +21,11 @@ package org.apache.maven.shared.release.phase;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.apache.maven.artifact.ArtifactUtils;
 
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.ScmException;
@@ -83,29 +87,7 @@ public class CheckoutProjectFromScm
             releaseDescriptor.setScmSourceUrl( providerPart + ":file://" + releaseDescriptor.getWorkingDirectory() );
             getLogger().info( "Performing a LOCAL checkout from " + releaseDescriptor.getScmSourceUrl() );
         }
-
-        try
-        {
-            repository = scmRepositoryConfigurator.getConfiguredRepository( releaseDescriptor,
-                                                                            releaseEnvironment.getSettings() );
-
-            provider = scmRepositoryConfigurator.getRepositoryProvider( repository );
-        }
-        catch ( ScmRepositoryException e )
-        {
-            result.setResultCode( ReleaseResult.ERROR );
-            logError( result, e.getMessage() );
-
-            throw new ReleaseScmRepositoryException( e.getMessage(), e.getValidationMessages() );
-        }
-        catch ( NoSuchScmProviderException e )
-        {
-            result.setResultCode( ReleaseResult.ERROR );
-            logError( result, e.getMessage() );
-
-            throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
-        }
-
+        
         MavenProject rootProject = ReleaseUtil.getRootProject( reactorProjects );
         // TODO: sanity check that it is not . or .. or lower
         File checkoutDirectory;
@@ -135,20 +117,102 @@ public class CheckoutProjectFromScm
         }
 
         checkoutDirectory.mkdirs();
+        
+        CheckOutScmResult scmResult = new CheckOutScmResult(null, null, null, true);
+        
+        if (releaseDescriptor.isCommitByProject()) {
+            // flat project structure
+            
+            String rootProjectBaseDir;
+            try {
+                rootProjectBaseDir = ReleaseUtil.getCommonBasedir(reactorProjects);
+            } catch (IOException e) {
+                result.setResultCode(ReleaseResult.ERROR);
+                logError(result, e.getMessage());
+                throw new ReleaseExecutionException(
+                        "An error is occurred in the checkout process: " + e.getMessage(), e);
+            }
+            
+            Iterator reactorProjectsIter = reactorProjects.iterator();
+            while (reactorProjectsIter.hasNext() && scmResult.isSuccess()) {
+                MavenProject mavenProject = (MavenProject) reactorProjectsIter.next();
+                String projectKey = ArtifactUtils.versionlessKey( mavenProject.getGroupId(), mavenProject.getArtifactId() );
+                
+                File mavenCheckoutProjectDirectory;
+                String mavenProjectBaseDir = mavenProject.getBasedir().getAbsolutePath();
+                if (mavenProjectBaseDir.length() > rootProjectBaseDir.length()) {
+                    String relativeProjectDir = mavenProjectBaseDir.substring(rootProjectBaseDir
+                            .length() + 1);
+                    mavenCheckoutProjectDirectory = new File(checkoutDirectory, relativeProjectDir);
+                } else {
+                    mavenCheckoutProjectDirectory = checkoutDirectory;
+                }
+                
+                try {
+                    repository = scmRepositoryConfigurator.getConfiguredRepository(mavenProject.getScm().getConnection(), releaseDescriptor,
+                            releaseEnvironment.getSettings());
 
-        CheckOutScmResult scmResult;
+                    provider = scmRepositoryConfigurator.getRepositoryProvider(repository);
+                } catch (ScmRepositoryException e) {
+                    result.setResultCode(ReleaseResult.ERROR);
+                    logError(result, e.getMessage());
 
-        try
-        {
-            scmResult = provider.checkOut( repository, new ScmFileSet( checkoutDirectory ),
+                    throw new ReleaseScmRepositoryException(e.getMessage(), e.getValidationMessages());
+                } catch (NoSuchScmProviderException e) {
+                    result.setResultCode(ReleaseResult.ERROR);
+                    logError(result, e.getMessage());
+
+                    throw new ReleaseExecutionException("Unable to configure SCM repository: "
+                            + e.getMessage(), e);
+                }
+                
+                try {
+                    scmResult = provider.checkOut(repository, new ScmFileSet(
+                            mavenCheckoutProjectDirectory), new ScmTag(releaseDescriptor
+                            .getScmReleaseLabel(projectKey)));
+                } catch (ScmException e) {
+                    result.setResultCode(ReleaseResult.ERROR);
+                    logError(result, e.getMessage());
+
+                    throw new ReleaseExecutionException(
+                            "An error is occurred in the checkout process: " + e.getMessage(), e);
+                }
+            }
+        } else {
+                try
+                {
+                    repository = scmRepositoryConfigurator.getConfiguredRepository( releaseDescriptor,
+                                                                                    releaseEnvironment.getSettings() );
+
+                    provider = scmRepositoryConfigurator.getRepositoryProvider( repository );
+                }
+                catch ( ScmRepositoryException e )
+                {
+                    result.setResultCode( ReleaseResult.ERROR );
+                    logError( result, e.getMessage() );
+
+                    throw new ReleaseScmRepositoryException( e.getMessage(), e.getValidationMessages() );
+                }
+                catch ( NoSuchScmProviderException e )
+                {
+                    result.setResultCode( ReleaseResult.ERROR );
+                    logError( result, e.getMessage() );
+
+                    throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
+                }
+
+                try
+                {
+                    scmResult = provider.checkOut( repository, new ScmFileSet( checkoutDirectory ),
                                            new ScmTag( releaseDescriptor.getScmReleaseLabel() ) );
-        }
-        catch ( ScmException e )
-        {
-            result.setResultCode( ReleaseResult.ERROR );
-            logError( result, e.getMessage() );
+                }
+                catch ( ScmException e )
+                {
+                    result.setResultCode( ReleaseResult.ERROR );
+                    logError( result, e.getMessage() );
 
-            throw new ReleaseExecutionException( "An error is occurred in the checkout process: " + e.getMessage(), e );
+                    throw new ReleaseExecutionException( "An error is occurred in the checkout process: " + e.getMessage(), e );
+                }
         }
 
         String scmRelativePathProjectDirectory = scmResult.getRelativePathProjectDirectory();

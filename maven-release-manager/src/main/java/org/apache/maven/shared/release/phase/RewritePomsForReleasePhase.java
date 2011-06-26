@@ -119,7 +119,12 @@ public class RewritePomsForReleasePhase
                 scm = project.getScm();
             }
             
-            String tag = releaseDescriptor.getScmReleaseLabel();
+            String projectKey = ArtifactUtils.versionlessKey( project.getGroupId(), project.getArtifactId() );
+            String tag = releaseDescriptor.getScmReleaseLabel(projectKey);
+            if (tag == null)
+            {
+                tag = releaseDescriptor.getScmReleaseLabel();
+            }
             String tagBase = releaseDescriptor.getScmTagBase();
 
             // TODO: svn utils should take care of prepending this

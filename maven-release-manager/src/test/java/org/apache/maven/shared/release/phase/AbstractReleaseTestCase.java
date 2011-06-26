@@ -153,6 +153,17 @@ public abstract class AbstractReleaseTestCase
         return createReactorProjects( path, path, subpath );
     }
 
+    /**
+     * Create new maven repository
+     * Create new profile and add maven repository
+     * Copy all related poms to target/test-classes, and create maven projects
+     * 
+     * @param path
+     * @param targetPath
+     * @param subpath
+     * @return
+     * @throws Exception 
+     */
     protected List<MavenProject> createReactorProjects( String path, String targetPath, String subpath )
         throws Exception
     {

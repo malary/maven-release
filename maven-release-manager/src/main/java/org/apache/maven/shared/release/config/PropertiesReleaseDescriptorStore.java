@@ -139,10 +139,6 @@ public class PropertiesReleaseDescriptorStore
         {
             properties.setProperty( "scm.branchBase", config.getScmBranchBase() );
         }
-        if ( config.getScmReleaseLabel() != null )
-        {
-            properties.setProperty( "scm.tag", config.getScmReleaseLabel() );
-        }
         if ( config.getScmCommentPrefix() != null )
         {
             properties.setProperty( "scm.commentPrefix", config.getScmCommentPrefix() );
@@ -169,7 +165,12 @@ public class PropertiesReleaseDescriptorStore
         properties.setProperty( "pushChanges", Boolean.toString( config.isPushChanges() ) );
 
         // others boolean properties are not written to the properties file because the value from the caller is always used
-
+        for ( Iterator i = config.getScmReleaseLabels().entrySet().iterator(); i.hasNext(); )
+        {
+            Map.Entry entry = (Map.Entry) i.next();
+            properties.setProperty( "scm.tag." + entry.getKey(), (String) entry.getValue() );
+        }
+        
         for ( Iterator i = config.getReleaseVersions().entrySet().iterator(); i.hasNext(); )
         {
             Map.Entry entry = (Map.Entry) i.next();

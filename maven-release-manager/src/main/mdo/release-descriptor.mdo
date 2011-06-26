@@ -96,9 +96,13 @@
           </description>
         </field>
         <field>
-          <name>scmReleaseLabel</name>
+          <name>scmReleaseLabels</name>
           <version>1.0.0+</version>
-          <type>String</type>
+          <type>Map</type>
+          <association>
+            <type>String</type>
+            <multiplicity>*</multiplicity>
+          </association>
           <description>
             tag name: the identifier for the tag.
             Example: maven-release-plugin-2.0
@@ -543,6 +547,96 @@
     }
 
     /**
+     * 
+     *
+     * @param projectId   the project's group and artifact ID
+     * @param label       the scm release label to map to
+     */
+    public void mapScmReleaseLabel( String projectId, String label )
+    {
+        if (scmReleaseLabels == null) {
+            scmReleaseLabels = new java.util.HashMap();
+        }
+
+        if ( label == null )
+        {
+            scmReleaseLabels.remove( projectId );
+        }
+        else
+        {
+            scmReleaseLabels.put( projectId, label );
+        }
+    }
+
+    /**
+     * 
+     *
+     * @param projectId   the project's group and artifact ID
+     * @param label       the scm release label to map to
+     */
+    public String getScmReleaseLabel( String projectId )
+    {
+        if (scmReleaseLabels == null) {
+            scmReleaseLabels = new java.util.HashMap();
+        }
+
+        return (String) scmReleaseLabels.get( projectId );
+    }
+
+    /**
+     * 
+     * @param label       the scm release label to map to
+     * @deprecated As of release 2.2, replaced by {@link #mapScmReleaseLabel(String, String)}
+     */
+    public void setScmReleaseLabel( String label )
+    {
+        if (scmReleaseLabels == null) {
+            scmReleaseLabels = new java.util.HashMap();
+        }
+
+        if (scmReleaseLabels.isEmpty())
+        {
+            mapScmReleaseLabel( "", label );
+        }
+        else if (scmReleaseLabels.size() == 1)
+        {
+            String key = (String) scmReleaseLabels.keySet().toArray()[0];
+            mapScmReleaseLabel(key, label);
+        }
+        else
+        {
+            throw new RuntimeException("Ambiguous default scm release label");
+        }
+    }
+
+    /**
+     * 
+     * @param label       the scm release label to map to
+     * @deprecated As of release 2.2, replaced by {@link #getScmReleaseLabel(String)}
+     */
+    public String getScmReleaseLabel()
+    {
+        if (scmReleaseLabels == null) {
+            scmReleaseLabels = new java.util.HashMap();
+        }
+
+        if (scmReleaseLabels.isEmpty())
+        {
+            return null;
+        }
+        else if (scmReleaseLabels.size() == 1)
+        {
+            String key = (String) scmReleaseLabels.keySet().toArray()[0];
+            return getScmReleaseLabel(key);
+        }
+        else
+        {
+            return "???????????????????";
+            // throw new RuntimeException("Ambiguous default scm release label");
+        }
+    }
+
+    /**
      * Map a given project to a specified set of SCM information.
      *
      * @param projectId the project's group and artifact ID
@@ -632,20 +726,20 @@
 
         ReleaseDescriptor that = (ReleaseDescriptor) obj;
 
-        if ( updateDependencies        != that.updateDependencies       ||
-             useReleaseProfile         != that.useReleaseProfile        ||
-             autoVersionSubmodules     != that.autoVersionSubmodules    ||
-             snapshotReleasePluginAllowed != that.snapshotReleasePluginAllowed ||
-             commitByProject           != that.commitByProject          ||
-             branchCreation            != that.branchCreation           ||
-             updateBranchVersions      != that.updateBranchVersions     ||
-             updateWorkingCopyVersions != that.updateWorkingCopyVersions||
-             suppressCommitBeforeTagOrBranch   != that.suppressCommitBeforeTagOrBranch  ||
-             updateVersionsToSnapshot  != that.updateVersionsToSnapshot ||
-             allowTimestampedSnapshots != that.allowTimestampedSnapshots||
-             remoteTagging             != that.remoteTagging            ||
-             localCheckout             != that.localCheckout            ||
-             pushChanges               != that.pushChanges
+        if ( updateDependencies              != that.updateDependencies               ||
+             useReleaseProfile               != that.useReleaseProfile                ||
+             autoVersionSubmodules           != that.autoVersionSubmodules            ||
+             snapshotReleasePluginAllowed    != that.snapshotReleasePluginAllowed     ||
+             commitByProject                 != that.commitByProject                  ||
+             branchCreation                  != that.branchCreation                   ||
+             updateBranchVersions            != that.updateBranchVersions             ||
+             updateWorkingCopyVersions       != that.updateWorkingCopyVersions        ||
+             suppressCommitBeforeTagOrBranch != that.suppressCommitBeforeTagOrBranch  ||
+             updateVersionsToSnapshot        != that.updateVersionsToSnapshot         ||
+             allowTimestampedSnapshots       != that.allowTimestampedSnapshots        ||
+             remoteTagging                   != that.remoteTagging                    ||
+             localCheckout                   != that.localCheckout                    ||
+             pushChanges                     != that.pushChanges
            )
            {
                return false;
@@ -720,6 +814,16 @@
                 return false;
             }
         }
+        if ( ( scmReleaseLabels == null || ( scmReleaseLabels != null && scmReleaseLabels.size() == 0 ) ) &&
+            ( that.scmReleaseLabels == null || ( that.scmReleaseLabels != null && that.scmReleaseLabels.size() == 0 ) ) ) {
+            // Do nothing.  This is a Modello workaround
+        } else {
+            if ( scmReleaseLabels != null ? !scmReleaseLabels.equals( that.scmReleaseLabels ) : that.scmReleaseLabels != null )
+            {
+                return false;
+            }
+        }
+
         if ( !safeEquals( additionalArguments, that.additionalArguments ) )
         {
             return false;
@@ -745,10 +849,6 @@
             return false;
         }
         if ( !safeEquals( scmPrivateKey, that.scmPrivateKey ) )
-        {
-            return false;
-        }
-        if ( !safeEquals( scmReleaseLabel, that.scmReleaseLabel ) )
         {
             return false;
         }
@@ -837,7 +937,7 @@
     public int hashCode()
     {
         int result = completedPhase != null ? completedPhase.hashCode() : 0;
-        result = 29 * result + ( scmReleaseLabel != null ? scmReleaseLabel.hashCode() : 0 );
+        result = 29 * result + ( scmReleaseLabels != null ? scmReleaseLabels.hashCode() : 0 );
         result = 29 * result + ( additionalArguments != null ? additionalArguments.hashCode() : 0 );
         result = 29 * result + ( preparationGoals != null ? preparationGoals.hashCode() : 0 );
         result = 29 * result + ( completionGoals != null ? completionGoals.hashCode() : 0 );

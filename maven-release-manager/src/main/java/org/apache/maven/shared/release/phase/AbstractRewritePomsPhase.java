@@ -25,6 +25,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -312,7 +313,15 @@ public abstract class AbstractRewritePomsPhase
         String commonBasedir;
         try
         {
+            // TODO: CommitByProject implies we are commiting from the project base, not reactor base
+            if (releaseDescriptor.isCommitByProject())
+            {
+        	commonBasedir = ReleaseUtil.getCommonBasedir( Arrays.asList(project) );
+            }
+            else
+            {
         	commonBasedir = ReleaseUtil.getCommonBasedir( reactorProjects );
+            }
         }
         catch ( IOException e )
         {

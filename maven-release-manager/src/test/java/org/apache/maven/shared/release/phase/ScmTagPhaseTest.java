@@ -184,7 +184,43 @@ public class ScmTagPhaseTest
 
         phase.execute( descriptor, new DefaultReleaseEnvironment(), reactorProjects );
     }
+/*
+    public void testCommitForFlatMultiModuleLeafTrunk()
+        throws Exception
+    {
+        List<MavenProject> reactorProjects =
+            createReactorProjects( "rewrite-for-release/pom-with-parent-flat-leaf-trunk", "/root-project" );
+        MavenProject rootProject = ReleaseUtil.getRootProject( reactorProjects );
+        ReleaseDescriptor descriptor = new ReleaseDescriptor();
+        descriptor.setScmSourceUrl( rootProject.getScm().getConnection() );
+        descriptor.setWorkingDirectory( getPath( rootProject.getFile().getParentFile() ) );
+        descriptor.setScmReleaseLabel( "release-label" );
+        descriptor.setScmCommentPrefix( "[my prefix]" );
 
+        // one directory up from root project
+        ScmFileSet fileSet = new ScmFileSet( rootProject.getFile().getParentFile().getParentFile() );
+
+        Mock scmProviderMock = new Mock( ScmProvider.class );
+        String scmUrl = "file://localhost/tmp/scm-repo";
+        SvnScmProviderRepository scmProviderRepository = new SvnScmProviderRepository( scmUrl );
+        ScmRepository repository = new ScmRepository( "svn", scmProviderRepository );
+        Constraint[] arguments = new Constraint[]{new IsEqual( repository ), new IsScmFileSetEquals( fileSet ),
+            new IsEqual( "release-label" ),
+            new IsScmTagParamtersEquals( new ScmTagParameters( "[my prefix] copy for tag release-label" ) )};
+        scmProviderMock
+            .expects( new InvokeOnceMatcher() )
+            .method( "tag" )
+            .with( arguments )
+            .will( new ReturnStub( new TagScmResult( "...", Collections.singletonList( new ScmFile( getPath (rootProject
+                       .getFile() ), ScmFileStatus.TAGGED ) ) ) ) );
+
+        ScmManagerStub stub = (ScmManagerStub) lookup( ScmManager.ROLE );
+        stub.setScmProvider( (ScmProvider) scmProviderMock.proxy() );
+        stub.addScmRepositoryForUrl( "scm:svn:" + scmUrl, repository );
+
+        phase.execute( descriptor, new DefaultReleaseEnvironment(), reactorProjects );
+    }
+*/
     public void testCommitMultiModule()
         throws Exception
     {

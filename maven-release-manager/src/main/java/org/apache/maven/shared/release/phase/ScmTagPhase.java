@@ -20,7 +20,11 @@ package org.apache.maven.shared.release.phase;
  */
 
 import java.io.File;
+import java.util.Iterator;
 import java.util.List;
+import org.apache.maven.artifact.ArtifactUtils;
+import org.apache.maven.model.Scm;
+import org.apache.maven.project.MavenProject;
 
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
@@ -78,50 +82,114 @@ public class ScmTagPhase
 
         logInfo( relResult, "Tagging release with the label " + releaseDescriptor.getScmReleaseLabel() + "..." );
 
-        ReleaseDescriptor basedirAlignedReleaseDescriptor =
-            ReleaseUtil.createBasedirAlignedReleaseDescriptor( releaseDescriptor, reactorProjects );
-
-        ScmRepository repository;
-        ScmProvider provider;
+        TagScmResult result = new TagScmResult(null, null, null, true);
         try
         {
-            repository =
-                scmRepositoryConfigurator.getConfiguredRepository( basedirAlignedReleaseDescriptor.getScmSourceUrl(),
-                                                                   releaseDescriptor,
-                                                                   releaseEnvironment.getSettings() );
             
-            repository.getProviderRepository().setPushChanges( releaseDescriptor.isPushChanges() );
+            if (releaseDescriptor.isCommitByProject()) {
+                Iterator reactorProjectsIter = reactorProjects.iterator();
+                while (reactorProjectsIter.hasNext() && result.isSuccess()) {
+                    MavenProject mavenProject = (MavenProject) reactorProjectsIter.next();
+                    
+                    String projectKey = ArtifactUtils.versionlessKey( mavenProject.getGroupId(), mavenProject.getArtifactId() );
+                    
+                    // TODO: want includes/excludes?
+                    String tagName = releaseDescriptor.getScmReleaseLabel(projectKey);
+                    ScmTagParameters scmTagParameters =
+                        new ScmTagParameters( releaseDescriptor.getScmCommentPrefix() + " copy for tag " + tagName );
+                    scmTagParameters.setRemoteTagging( releaseDescriptor.isRemoteTagging() );
+                    scmTagParameters.setScmRevision( releaseDescriptor.getScmReleasedPomRevision() );
+                    if ( getLogger().isDebugEnabled() )
+                    {
+                        getLogger().debug(
+                            "ScmTagPhase :: scmTagParameters remotingTag " + releaseDescriptor.isRemoteTagging() );
+                        getLogger().debug(
+                            "ScmTagPhase :: scmTagParameters scmRevision " + releaseDescriptor.getScmReleasedPomRevision() );
+                    }
+                    
+                    ReleaseDescriptor projectReleaseDescriptor = new ReleaseDescriptor();
+                    projectReleaseDescriptor.setWorkingDirectory( mavenProject.getBasedir().getAbsolutePath() );
+                    projectReleaseDescriptor.setScmSourceUrl(
+                            ((Scm)releaseDescriptor.getOriginalScmInfo().get(projectKey)).getDeveloperConnection()
+                    );
+                    
+                    ScmRepository repository;
+                    ScmProvider provider;
+                    try
+                    {
+                        repository =
+                            scmRepositoryConfigurator.getConfiguredRepository( projectReleaseDescriptor.getScmSourceUrl(),
+                                                                               releaseDescriptor,
+                                                                               releaseEnvironment.getSettings() );
 
-            provider = scmRepositoryConfigurator.getRepositoryProvider( repository );
-        }
-        catch ( ScmRepositoryException e )
-        {
-            throw new ReleaseScmRepositoryException( e.getMessage(), e.getValidationMessages() );
-        }
-        catch ( NoSuchScmProviderException e )
-        {
-            throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
-        }
+                        repository.getProviderRepository().setPushChanges( releaseDescriptor.isPushChanges() );
 
-        TagScmResult result;
-        try
-        {
-            // TODO: want includes/excludes?
-            ScmFileSet fileSet = new ScmFileSet( new File( basedirAlignedReleaseDescriptor.getWorkingDirectory() ) );
-            String tagName = releaseDescriptor.getScmReleaseLabel();
-            ScmTagParameters scmTagParameters =
-                new ScmTagParameters( releaseDescriptor.getScmCommentPrefix() + " copy for tag " + tagName );
-            scmTagParameters.setRemoteTagging( releaseDescriptor.isRemoteTagging() );
-            scmTagParameters.setScmRevision( releaseDescriptor.getScmReleasedPomRevision() );
-            if ( getLogger().isDebugEnabled() )
-            {
-                getLogger().debug(
-                    "ScmTagPhase :: scmTagParameters remotingTag " + releaseDescriptor.isRemoteTagging() );
-                getLogger().debug(
-                    "ScmTagPhase :: scmTagParameters scmRevision " + releaseDescriptor.getScmReleasedPomRevision() );
-                getLogger().debug( "ScmTagPhase :: fileSet  " + fileSet );
+                        provider = scmRepositoryConfigurator.getRepositoryProvider( repository );
+                    }
+                    catch ( ScmRepositoryException e )
+                    {
+                        throw new ReleaseScmRepositoryException( e.getMessage(), e.getValidationMessages() );
+                    }
+                    catch ( NoSuchScmProviderException e )
+                    {
+                        throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
+                    }
+                    
+                    ScmFileSet fileSet = new ScmFileSet( mavenProject.getBasedir() );
+
+                    if ( getLogger().isDebugEnabled() )
+                    {
+                        getLogger().debug( "ScmTagPhase :: fileSet  " + fileSet );
+                    }
+                    result = provider.tag( repository, fileSet, tagName, scmTagParameters );
+                }
+            } else {
+                // TODO: want includes/excludes?
+                String tagName = releaseDescriptor.getScmReleaseLabel();
+                ScmTagParameters scmTagParameters =
+                    new ScmTagParameters( releaseDescriptor.getScmCommentPrefix() + " copy for tag " + tagName );
+                scmTagParameters.setRemoteTagging( releaseDescriptor.isRemoteTagging() );
+                scmTagParameters.setScmRevision( releaseDescriptor.getScmReleasedPomRevision() );
+                if ( getLogger().isDebugEnabled() )
+                {
+                    getLogger().debug(
+                        "ScmTagPhase :: scmTagParameters remotingTag " + releaseDescriptor.isRemoteTagging() );
+                    getLogger().debug(
+                        "ScmTagPhase :: scmTagParameters scmRevision " + releaseDescriptor.getScmReleasedPomRevision() );
+                }
+            
+                ReleaseDescriptor basedirAlignedReleaseDescriptor =
+                    ReleaseUtil.createBasedirAlignedReleaseDescriptor( releaseDescriptor, reactorProjects );
+                
+                ScmRepository repository;
+                ScmProvider provider;
+                try
+                {
+                    repository =
+                        scmRepositoryConfigurator.getConfiguredRepository( basedirAlignedReleaseDescriptor.getScmSourceUrl(),
+                                                                           releaseDescriptor,
+                                                                           releaseEnvironment.getSettings() );
+
+                    repository.getProviderRepository().setPushChanges( releaseDescriptor.isPushChanges() );
+
+                    provider = scmRepositoryConfigurator.getRepositoryProvider( repository );
+                }
+                catch ( ScmRepositoryException e )
+                {
+                    throw new ReleaseScmRepositoryException( e.getMessage(), e.getValidationMessages() );
+                }
+                catch ( NoSuchScmProviderException e )
+                {
+                    throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
+                }
+        
+                ScmFileSet fileSet = new ScmFileSet( new File( basedirAlignedReleaseDescriptor.getWorkingDirectory() ) );
+                if ( getLogger().isDebugEnabled() )
+                {
+                    getLogger().debug( "ScmTagPhase :: fileSet  " + fileSet );
+                }
+                result = provider.tag( repository, fileSet, tagName, scmTagParameters );
             }
-            result = provider.tag( repository, fileSet, tagName, scmTagParameters );
         }
         catch ( ScmException e )
         {

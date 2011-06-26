@@ -19,6 +19,7 @@ package org.apache.maven.shared.release.phase;
  * under the License.
  */
 
+import java.util.Iterator;
 import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.manager.NoSuchScmProviderException;
@@ -90,15 +91,37 @@ public class InputVariablesPhase
     {
         ReleaseResult result = new ReleaseResult();
 
-        // get the root project
-        MavenProject project = ReleaseUtil.getRootProject( reactorProjects );
+        if (releaseDescriptor.isCommitByProject())
+        {
+            for ( Iterator<MavenProject> i = reactorProjects.iterator(); i.hasNext(); )
+            {
+                MavenProject project = i.next();
+                setScmReleaseLabel(releaseDescriptor, releaseEnvironment, project);
+            }
+        }
+        else
+        {
+            MavenProject project = ReleaseUtil.getRootProject( reactorProjects );
+            setScmReleaseLabel(releaseDescriptor, releaseEnvironment, project);
+        }
 
-        String tag = releaseDescriptor.getScmReleaseLabel();
+        result.setResultCode( ReleaseResult.SUCCESS );
+
+        return result;
+    }
+    
+    public void setScmReleaseLabel( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, MavenProject project )
+        throws ReleaseExecutionException
+    {
+        String key = ArtifactUtils.versionlessKey( project.getGroupId(), project.getArtifactId() );
+        String tag = (String) releaseDescriptor.getScmReleaseLabel( key );
+        if (tag == null) {
+            tag = releaseDescriptor.getScmReleaseLabel("");
+        }
 
         if ( tag == null )
         {
             // Must get default version from mapped versions, as the project will be the incorrect snapshot
-            String key = ArtifactUtils.versionlessKey( project.getGroupId(), project.getArtifactId() );
             String releaseVersion = (String) releaseDescriptor.getReleaseVersions().get( key );
             if ( releaseVersion == null )
             {
@@ -137,13 +160,10 @@ public class InputVariablesPhase
             {
                 tag = defaultTag;
             }
-            releaseDescriptor.setScmReleaseLabel( tag );
+            releaseDescriptor.mapScmReleaseLabel( key, tag );
         }
-
-        result.setResultCode( ReleaseResult.SUCCESS );
-
-        return result;
     }
+    
 
     public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<MavenProject> reactorProjects )
         throws ReleaseExecutionException

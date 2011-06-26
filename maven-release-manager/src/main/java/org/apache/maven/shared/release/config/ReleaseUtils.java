@@ -55,8 +55,6 @@ public class ReleaseUtils
         mergeInto.setScmSourceUrl( mergeOverride( mergeInto.getScmSourceUrl(), toBeMerged.getScmSourceUrl() ) );
         mergeInto.setScmCommentPrefix(
             mergeOverride( mergeInto.getScmCommentPrefix(), toBeMerged.getScmCommentPrefix() ) );
-        mergeInto.setScmReleaseLabel(
-            mergeOverride( mergeInto.getScmReleaseLabel(), toBeMerged.getScmReleaseLabel() ) );
         mergeInto.setScmTagBase( mergeOverride( mergeInto.getScmTagBase(), toBeMerged.getScmTagBase() ) );
         mergeInto.setScmBranchBase( mergeOverride( mergeInto.getScmBranchBase(), toBeMerged.getScmBranchBase() ) );
         mergeInto.setScmUsername( mergeOverride( mergeInto.getScmUsername(), toBeMerged.getScmUsername() ) );
@@ -100,6 +98,10 @@ public class ReleaseUtils
         mergeInto.setWaitBeforeTagging( toBeMerged.getWaitBeforeTagging() );
 
         // If the user specifies versions, these should be override the existing versions
+        if ( toBeMerged.getScmReleaseLabels() != null )
+        {
+            mergeInto.getScmReleaseLabels().putAll( toBeMerged.getScmReleaseLabels() );
+        }
         if ( toBeMerged.getReleaseVersions() != null )
         {
             mergeInto.getReleaseVersions().putAll( toBeMerged.getReleaseVersions() );
@@ -141,7 +143,6 @@ public class ReleaseUtils
         releaseDescriptor.setScmPrivateKeyPassPhrase( properties.getProperty( "scm.passphrase" ) );
         releaseDescriptor.setScmTagBase( properties.getProperty( "scm.tagBase" ) );
         releaseDescriptor.setScmBranchBase( properties.getProperty( "scm.branchBase" ) );
-        releaseDescriptor.setScmReleaseLabel( properties.getProperty( "scm.tag" ) );
         releaseDescriptor.setScmCommentPrefix( properties.getProperty( "scm.commentPrefix" ) );
         releaseDescriptor.setAdditionalArguments( properties.getProperty( "exec.additionalArguments" ) );
         releaseDescriptor.setPomFileName( properties.getProperty( "exec.pomFileName" ) );
@@ -159,7 +160,11 @@ public class ReleaseUtils
         for ( Iterator i = properties.keySet().iterator(); i.hasNext(); )
         {
             String property = (String) i.next();
-            if ( property.startsWith( "project.rel." ) )
+            if ( property.startsWith( "scm.tag." ) )
+            {
+                releaseDescriptor.mapScmReleaseLabel( property.substring( "scm.tag.".length() ),
+                                                     properties.getProperty( property ) );
+            } else if ( property.startsWith( "project.rel." ) )
             {
                 releaseDescriptor.mapReleaseVersion( property.substring( "project.rel.".length() ),
                                                      properties.getProperty( property ) );

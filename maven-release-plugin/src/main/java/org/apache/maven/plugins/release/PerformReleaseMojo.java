@@ -83,6 +83,14 @@ public class PerformReleaseMojo
     private boolean useReleaseProfile;
 
     /**
+     * Commits to do are atomic or by project.
+     *
+     * @parameter expression="${commitByProject}" default-value="false"
+     * @since 2.0-beta-5
+     */
+    private boolean commitByProject;
+    
+    /**
      * {@inheritDoc}
      */
     protected String getAdditionalProfiles()
@@ -109,6 +117,7 @@ public class PerformReleaseMojo
         {
             // Note that the working directory here is not the same as in the release configuration, so don't reuse that
             ReleaseDescriptor releaseDescriptor = createReleaseDescriptor();
+            releaseDescriptor.setCommitByProject( commitByProject );
             if ( connectionUrl != null )
             {
                 releaseDescriptor.setScmSourceUrl( connectionUrl );

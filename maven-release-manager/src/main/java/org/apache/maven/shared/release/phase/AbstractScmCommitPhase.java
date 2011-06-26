@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.maven.artifact.ArtifactUtils;
 
 /**
  * Holds the basic concept of committing changes to the current working copy.
@@ -174,7 +175,7 @@ public abstract class AbstractScmCommitPhase
     }
 
     protected void simulateCheckins( ReleaseDescriptor releaseDescriptor, List<MavenProject> reactorProjects, ReleaseResult result,
-                                     String message )
+            String message )
     {
         Collection<File> pomFiles = createPomFiles( releaseDescriptor, reactorProjects );
         logInfo( result, "Full run would be commit " + pomFiles.size() + " files with message: '" + message + "'" );
@@ -183,7 +184,7 @@ public abstract class AbstractScmCommitPhase
     protected void validateConfiguration( ReleaseDescriptor releaseDescriptor )
         throws ReleaseFailureException
     {
-        if ( releaseDescriptor.getScmReleaseLabel() == null )
+        if (( releaseDescriptor.getScmReleaseLabels() == null ) || ( releaseDescriptor.getScmReleaseLabels().isEmpty() ))
         {
             throw new ReleaseFailureException( "A release label is required for committing" );
         }
