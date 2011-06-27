@@ -19,6 +19,8 @@ package org.apache.maven.shared.release.phase;
  * under the License.
  */
 
+import org.apache.maven.artifact.ArtifactUtils;
+import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.ReleaseFailureException;
 import org.apache.maven.shared.release.ReleaseResult;
@@ -26,8 +28,10 @@ import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.env.ReleaseEnvironment;
 import org.apache.maven.shared.release.scm.ReleaseScmCommandException;
 import org.apache.maven.shared.release.scm.ReleaseScmRepositoryException;
+import org.apache.maven.shared.release.util.ReleaseUtil;
 
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -45,7 +49,7 @@ public class ScmCommitPreparationPhase
     private String rollbackMessageFormat;
 
     protected void runLogic( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
-                             List reactorProjects, ReleaseResult result, boolean simulating )
+                             List<MavenProject> reactorProjects, ReleaseResult result, boolean simulating )
         throws ReleaseScmCommandException, ReleaseExecutionException, ReleaseScmRepositoryException
     {
         // no prepare-commit required
@@ -64,23 +68,36 @@ public class ScmCommitPreparationPhase
         // commit development versions required
         else
         {
-            String message = createMessage( releaseDescriptor );
-
-            if ( simulating )
+            List<String> messages = new ArrayList<String>();
+            if ( releaseDescriptor.isCommitByProject() )
             {
-                simulateCheckins( releaseDescriptor, reactorProjects, result, message );
+                for (MavenProject project : reactorProjects)
+                {
+                    messages.add(createMessage( releaseDescriptor, project ));
+                }
             }
             else
             {
-                performCheckins( releaseDescriptor, releaseEnvironment, reactorProjects, message );
+                MavenProject rootProject = ReleaseUtil.getRootProject( reactorProjects );
+                messages.add( createMessage( releaseDescriptor, rootProject ));
+            }
+
+            if ( simulating )
+            {
+                simulateCheckins( releaseDescriptor, reactorProjects, result, messages );
+            }
+            else
+            {
+                performCheckins( releaseDescriptor, releaseEnvironment, reactorProjects, messages );
             }
         }
     }
 
-    private String createRollbackMessage( ReleaseDescriptor releaseDescriptor )
+    private String createRollbackMessage( ReleaseDescriptor releaseDescriptor, MavenProject project )
     {
+        String projectKey = ArtifactUtils.versionlessKey(project.getGroupId(), project.getArtifactId());
         return MessageFormat.format( releaseDescriptor.getScmCommentPrefix() + rollbackMessageFormat,
-                                     new Object[]{releaseDescriptor.getScmReleaseLabel()} );
+                                     new Object[]{releaseDescriptor.getScmReleaseLabel(projectKey)} );
     }
 
     protected void validateConfiguration( ReleaseDescriptor releaseDescriptor )

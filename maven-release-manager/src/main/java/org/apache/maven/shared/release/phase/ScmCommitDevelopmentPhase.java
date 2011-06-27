@@ -21,9 +21,11 @@ package org.apache.maven.shared.release.phase;
 
 import java.io.File;
 import java.text.MessageFormat;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.shared.release.ReleaseExecutionException;
 import org.apache.maven.shared.release.ReleaseResult;
@@ -31,6 +33,7 @@ import org.apache.maven.shared.release.config.ReleaseDescriptor;
 import org.apache.maven.shared.release.env.ReleaseEnvironment;
 import org.apache.maven.shared.release.scm.ReleaseScmCommandException;
 import org.apache.maven.shared.release.scm.ReleaseScmRepositoryException;
+import org.apache.maven.shared.release.util.ReleaseUtil;
 
 /**
  * Commit the changes that were done to prepare the branch or tag to the SCM.
@@ -69,34 +72,59 @@ public class ScmCommitDevelopmentPhase
         // rollback or commit development versions required
         else
         {
-            String message;
+            List<String> messages = new ArrayList<String>();
             if ( !releaseDescriptor.isUpdateWorkingCopyVersions() )
             {
                 // the commit is a rollback
-                message = createRollbackMessage( releaseDescriptor );
+                if ( releaseDescriptor.isCommitByProject() ) {
+                    for (MavenProject project : reactorProjects)
+                    {
+                        messages.add( createRollbackMessage( releaseDescriptor, project ));
+                    }
+                }
+                else
+                {
+                    MavenProject rootProject = ReleaseUtil.getRootProject( reactorProjects );
+                    messages.add( createRollbackMessage( releaseDescriptor, rootProject ));
+                }
             }
             else
             {
                 // a normal commit
-                message = createMessage( releaseDescriptor );
+                if ( releaseDescriptor.isCommitByProject() )
+                {
+                    for (MavenProject project : reactorProjects)
+                    {
+                        messages.add( createMessage( releaseDescriptor, project ));
+                    }
+                }
+                else
+                {
+                    MavenProject rootProject = ReleaseUtil.getRootProject( reactorProjects );
+                    messages.add( createMessage( releaseDescriptor, rootProject ));
+                }
             }
             if ( simulating )
             {
                 Collection<File> pomFiles = createPomFiles( releaseDescriptor, reactorProjects );
-                logInfo( result,
-                         "Full run would be commit " + pomFiles.size() + " files with message: '" + message + "'" );
+                logInfo( result, "Full run would be commit " + pomFiles.size() + " files with message:");
+                for (String message : messages)
+                {
+                    logInfo(result, message);
+                }
             }
             else
             {
-                performCheckins( releaseDescriptor, releaseEnvironment, reactorProjects, message );
+                performCheckins( releaseDescriptor, releaseEnvironment, reactorProjects, messages );
             }
         }
     }
 
-    private String createRollbackMessage( ReleaseDescriptor releaseDescriptor )
+    private String createRollbackMessage( ReleaseDescriptor releaseDescriptor, MavenProject project )
     {
+        String projectKey = ArtifactUtils.versionlessKey( project.getGroupId(), project.getArtifactId() );
         return MessageFormat.format( releaseDescriptor.getScmCommentPrefix() + rollbackMessageFormat,
-                                     new Object[]{releaseDescriptor.getScmReleaseLabel()} );
+                                     new Object[]{releaseDescriptor.getScmReleaseLabel(projectKey)} );
     }
 
 }

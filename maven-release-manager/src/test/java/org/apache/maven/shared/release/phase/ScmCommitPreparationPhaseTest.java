@@ -19,6 +19,7 @@ package org.apache.maven.shared.release.phase;
  * under the License.
  */
 
+import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFile;
@@ -93,7 +94,9 @@ public class ScmCommitPreparationPhaseTest
         descriptor.setScmSourceUrl( "scm-url" );
         MavenProject rootProject = ReleaseUtil.getRootProject( reactorProjects );
         descriptor.setWorkingDirectory( rootProject.getFile().getParentFile().getAbsolutePath() );
-        descriptor.setScmReleaseLabel( "release-label" );
+        
+        String projectKey = ArtifactUtils.versionlessKey(rootProject.getGroupId(), rootProject.getArtifactId());
+        descriptor.mapScmReleaseLabel( projectKey, "release-label" );
 
         ScmFileSet fileSet = new ScmFileSet( rootProject.getFile().getParentFile(), rootProject.getFile() );
 
@@ -125,13 +128,14 @@ public class ScmCommitPreparationPhaseTest
         descriptor.setScmSourceUrl( "scm-url" );
         MavenProject rootProject = ReleaseUtil.getRootProject( reactorProjects );
         descriptor.setWorkingDirectory( rootProject.getFile().getParentFile().getAbsolutePath() );
-        descriptor.setScmReleaseLabel( "release-label" );
 
         List<File> poms = new ArrayList<File>();
         for ( Iterator<MavenProject> i = reactorProjects.iterator(); i.hasNext(); )
         {
             MavenProject project = i.next();
             poms.add( project.getFile() );
+            String projectKey = ArtifactUtils.versionlessKey(project.getGroupId(), project.getArtifactId());
+            descriptor.mapScmReleaseLabel( projectKey, "release-label" );
         }
         ScmFileSet fileSet = new ScmFileSet( rootProject.getFile().getParentFile(), poms);
 
@@ -211,7 +215,8 @@ public class ScmCommitPreparationPhaseTest
         descriptor.setGenerateReleasePoms( true );
         MavenProject rootProject = ReleaseUtil.getRootProject( reactorProjects );
         descriptor.setWorkingDirectory( rootProject.getFile().getParentFile().getAbsolutePath() );
-        descriptor.setScmReleaseLabel( "release-label" );
+        String projectKey = ArtifactUtils.versionlessKey(rootProject.getGroupId(), rootProject.getArtifactId());
+        descriptor.mapScmReleaseLabel( projectKey, "release-label" );
 
         List<File> files = new ArrayList<File>();
         files.add( rootProject.getFile() );

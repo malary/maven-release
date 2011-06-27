@@ -19,9 +19,7 @@ package org.apache.maven.shared.release.phase;
  * under the License.
  */
 
-import java.util.Collections;
-import java.util.List;
-
+import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.ScmFile;
 import org.apache.maven.scm.ScmFileSet;
@@ -41,6 +39,8 @@ import org.jmock.core.constraint.IsNull;
 import org.jmock.core.matcher.InvokeOnceMatcher;
 import org.jmock.core.matcher.TestFailureMatcher;
 import org.jmock.core.stub.ReturnStub;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Test the SCM development commit phase.
@@ -158,9 +158,10 @@ public class ScmCommitDevelopmentPhaseTest
 
     private static ReleaseDescriptor createReleaseDescriptor( MavenProject rootProject )
     {
+        String projectKey = ArtifactUtils.versionlessKey(rootProject.getGroupId(), rootProject.getArtifactId());
         ReleaseDescriptor descriptor = new ReleaseDescriptor();
         descriptor.setScmSourceUrl( "scm-url" );
-        descriptor.setScmReleaseLabel( "release-label" );
+        descriptor.mapScmReleaseLabel( projectKey, "release-label" );
         descriptor.setWorkingDirectory( rootProject.getFile().getParentFile().getAbsolutePath() );
         return descriptor;
     }

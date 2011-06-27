@@ -19,6 +19,7 @@ package org.apache.maven.shared.release.phase;
  * under the License.
  */
 
+import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
@@ -44,7 +45,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.maven.artifact.ArtifactUtils;
 
 /**
  * Holds the basic concept of committing changes to the current working copy.
@@ -103,7 +103,7 @@ public abstract class AbstractScmCommitPhase
         throws ReleaseScmCommandException, ReleaseExecutionException, ReleaseScmRepositoryException;
 
     protected void performCheckins( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
-                                    List<MavenProject> reactorProjects, String message )
+                                    List<MavenProject> reactorProjects, List<String> messages )
         throws ReleaseScmRepositoryException, ReleaseExecutionException, ReleaseScmCommandException
     {
 
@@ -131,9 +131,10 @@ public abstract class AbstractScmCommitPhase
 
         if ( releaseDescriptor.isCommitByProject() )
         {
-            for ( Iterator<MavenProject> i = reactorProjects.iterator(); i.hasNext(); )
+            for ( int i = 0; i < reactorProjects.size(); i++ )
             {
-                MavenProject project = i.next();
+                MavenProject project = reactorProjects.get(i);
+                String message = messages.get(i);
 
                 List<File> pomFiles = createPomFiles( releaseDescriptor, project );
                 ScmFileSet fileSet = new ScmFileSet( project.getFile().getParentFile(), pomFiles );
@@ -146,7 +147,7 @@ public abstract class AbstractScmCommitPhase
             List<File> pomFiles = createPomFiles( releaseDescriptor, reactorProjects );
             ScmFileSet fileSet = new ScmFileSet( new File( releaseDescriptor.getWorkingDirectory() ), pomFiles );
 
-            checkin( provider, repository, fileSet, releaseDescriptor, message );
+            checkin( provider, repository, fileSet, releaseDescriptor, messages.get(0) );
         }
     }
 
@@ -175,10 +176,14 @@ public abstract class AbstractScmCommitPhase
     }
 
     protected void simulateCheckins( ReleaseDescriptor releaseDescriptor, List<MavenProject> reactorProjects, ReleaseResult result,
-            String message )
+            List<String> messages )
     {
         Collection<File> pomFiles = createPomFiles( releaseDescriptor, reactorProjects );
-        logInfo( result, "Full run would be commit " + pomFiles.size() + " files with message: '" + message + "'" );
+        logInfo( result, "Full run would be commit " + pomFiles.size() + " files with message: ");
+        for (String message : messages)
+        {
+            logInfo(result, message);
+        }
     }
 
     protected void validateConfiguration( ReleaseDescriptor releaseDescriptor )
@@ -190,10 +195,11 @@ public abstract class AbstractScmCommitPhase
         }
     }
 
-    protected String createMessage( ReleaseDescriptor releaseDescriptor )
+    protected String createMessage( ReleaseDescriptor releaseDescriptor, MavenProject project )
     {
+        String projectKey = ArtifactUtils.versionlessKey( project.getGroupId(), project.getArtifactId() );
         return MessageFormat.format( releaseDescriptor.getScmCommentPrefix() + messageFormat,
-                                     new Object[]{releaseDescriptor.getScmReleaseLabel()} );
+                                     new Object[]{releaseDescriptor.getScmReleaseLabel(projectKey)} );
     }
 
     protected static List<File> createPomFiles( ReleaseDescriptor releaseDescriptor, MavenProject project )
