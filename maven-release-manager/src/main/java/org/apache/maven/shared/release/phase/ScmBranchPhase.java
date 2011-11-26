@@ -19,6 +19,11 @@ package org.apache.maven.shared.release.phase;
  * under the License.
  */
 
+import java.io.File;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.maven.artifact.ArtifactUtils;
+import org.apache.maven.model.Scm;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.ScmBranchParameters;
 import org.apache.maven.scm.ScmException;
@@ -36,12 +41,6 @@ import org.apache.maven.shared.release.env.ReleaseEnvironment;
 import org.apache.maven.shared.release.scm.ReleaseScmCommandException;
 import org.apache.maven.shared.release.scm.ReleaseScmRepositoryException;
 import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
-
-import java.io.File;
-import java.util.Iterator;
-import java.util.List;
-import org.apache.maven.artifact.ArtifactUtils;
-import org.apache.maven.model.Scm;
 import org.apache.maven.shared.release.util.ReleaseUtil;
 
 /**
@@ -80,7 +79,6 @@ public class ScmBranchPhase
             }
         }
 
-        logInfo( relResult, "Branching release with the label " + releaseDescriptor.getScmReleaseLabel() + "..." );
 
         BranchScmResult result = new BranchScmResult(null, null, null, true);
         try
@@ -92,6 +90,8 @@ public class ScmBranchPhase
                     // Get project key
                     MavenProject mavenProject = (MavenProject) reactorProjectsIter.next();
                     String projectKey = ArtifactUtils.versionlessKey( mavenProject.getGroupId(), mavenProject.getArtifactId() );
+
+                    logInfo( relResult, "Branching release with the label " + releaseDescriptor.getScmReleaseLabel(projectKey) + "..." );
 
                     // Prepare parameters
                     String branchName = releaseDescriptor.getScmReleaseLabel(projectKey);
@@ -108,6 +108,8 @@ public class ScmBranchPhase
                     result = doBranch(projectReleaseDescriptor, releaseDescriptor, releaseEnvironment, branchName, scmBranchParameters);
                 }
             } else {
+                logInfo( relResult, "Branching release with the label " + releaseDescriptor.getScmReleaseLabel() + "..." );
+
                 // Prepare parameters
                 String branchName = releaseDescriptor.getScmReleaseLabel();
                 ScmBranchParameters scmBranchParameters = prepareScmBranchParameters(releaseDescriptor, branchName);
@@ -209,7 +211,7 @@ public class ScmBranchPhase
     private static void validateConfiguration( ReleaseDescriptor releaseDescriptor )
         throws ReleaseFailureException
     {
-        if ( releaseDescriptor.getScmReleaseLabel() == null )
+        if ( releaseDescriptor.getScmReleaseLabels().isEmpty() )
         {
             throw new ReleaseFailureException( "A release label is required for committing" );
         }

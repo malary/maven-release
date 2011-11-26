@@ -22,8 +22,12 @@ package org.apache.maven.shared.release.phase;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 
+import java.util.Map;
+import org.apache.maven.artifact.ArtifactUtils;
+import org.apache.maven.model.Scm;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFile;
@@ -73,12 +77,12 @@ public class ScmTagPhaseTest
         phase = (ReleasePhase) lookup( ReleasePhase.ROLE, "scm-tag" );
     }
 
-    public static String getPath(File file) 
+    public static String getPath(File file)
         throws IOException
     {
         return ReleaseUtil.isSymlink( file ) ? file.getCanonicalPath() : file.getAbsolutePath();
     }
-    
+
     public void testTag()
         throws Exception
     {
@@ -134,7 +138,7 @@ public class ScmTagPhaseTest
         Constraint[] arguments = new Constraint[]{new IsEqual( repository ), new IsScmFileSetEquals( fileSet ),
             new IsEqual( "release-label" ),
             new IsScmTagParamtersEquals( new ScmTagParameters( "[my prefix] copy for tag release-label" ) )};
-        
+
         scmProviderMock
             .expects( new InvokeOnceMatcher() )
             .method( "tag" )
@@ -184,7 +188,7 @@ public class ScmTagPhaseTest
 
         phase.execute( descriptor, new DefaultReleaseEnvironment(), reactorProjects );
     }
-/*
+
     public void testCommitForFlatMultiModuleLeafTrunk()
         throws Exception
     {
@@ -194,33 +198,53 @@ public class ScmTagPhaseTest
         ReleaseDescriptor descriptor = new ReleaseDescriptor();
         descriptor.setScmSourceUrl( rootProject.getScm().getConnection() );
         descriptor.setWorkingDirectory( getPath( rootProject.getFile().getParentFile() ) );
-        descriptor.setScmReleaseLabel( "release-label" );
-        descriptor.setScmCommentPrefix( "[my prefix]" );
+        Map releaseLabels = new HashMap();
+        releaseLabels.put("groupId:artifactId", "release-label");
+        releaseLabels.put("groupId:subproject1", "release-label");
+        descriptor.setScmReleaseLabels(releaseLabels);
 
-        // one directory up from root project
-        ScmFileSet fileSet = new ScmFileSet( rootProject.getFile().getParentFile().getParentFile() );
+        descriptor.setScmCommentPrefix( "[my prefix]" );
+        descriptor.setCommitByProject(true);
+
+        Map originalScmInfo = new HashMap();
+        for (MavenProject mavenProject : reactorProjects)
+        {
+            String projectKey = ArtifactUtils.versionlessKey( mavenProject.getGroupId(), mavenProject.getArtifactId() );
+            originalScmInfo.put(projectKey, mavenProject.getScm());
+        }
+        descriptor.setOriginalScmInfo(originalScmInfo);
 
         Mock scmProviderMock = new Mock( ScmProvider.class );
-        String scmUrl = "file://localhost/tmp/scm-repo";
-        SvnScmProviderRepository scmProviderRepository = new SvnScmProviderRepository( scmUrl );
-        ScmRepository repository = new ScmRepository( "svn", scmProviderRepository );
-        Constraint[] arguments = new Constraint[]{new IsEqual( repository ), new IsScmFileSetEquals( fileSet ),
-            new IsEqual( "release-label" ),
-            new IsScmTagParamtersEquals( new ScmTagParameters( "[my prefix] copy for tag release-label" ) )};
-        scmProviderMock
-            .expects( new InvokeOnceMatcher() )
-            .method( "tag" )
-            .with( arguments )
-            .will( new ReturnStub( new TagScmResult( "...", Collections.singletonList( new ScmFile( getPath (rootProject
-                       .getFile() ), ScmFileStatus.TAGGED ) ) ) ) );
-
         ScmManagerStub stub = (ScmManagerStub) lookup( ScmManager.ROLE );
         stub.setScmProvider( (ScmProvider) scmProviderMock.proxy() );
-        stub.addScmRepositoryForUrl( "scm:svn:" + scmUrl, repository );
+
+        // commit by project
+        for (MavenProject project : reactorProjects)
+        {
+            String scmUrl = project.getScm().getDeveloperConnection().substring(8);
+            SvnScmProviderRepository scmProviderRepository = new SvnScmProviderRepository( scmUrl );
+            ScmRepository repository = new ScmRepository( "svn", scmProviderRepository );
+
+            ScmFileSet fileSet = new ScmFileSet( project.getFile().getParentFile() );
+
+            Constraint[] arguments = new Constraint[]{
+                new IsEqual( repository ),
+                new IsScmFileSetEquals( fileSet ),
+                new IsEqual( "release-label" ),
+                new IsScmTagParamtersEquals( new ScmTagParameters( "[my prefix] copy for tag release-label" ) )};
+            scmProviderMock
+                .expects( new InvokeOnceMatcher() )
+                .method( "tag" )
+                .with( arguments )
+                .will( new ReturnStub( new TagScmResult( "...", Collections.singletonList( new ScmFile( getPath (project
+                           .getFile() ), ScmFileStatus.TAGGED ) ) ) ) );
+            stub.addScmRepositoryForUrl( "scm:svn:" + scmUrl, repository );
+        }
+
 
         phase.execute( descriptor, new DefaultReleaseEnvironment(), reactorProjects );
     }
-*/
+
     public void testCommitMultiModule()
         throws Exception
     {
@@ -417,7 +441,7 @@ public class ScmTagPhaseTest
         return createReactorProjects( "scm-commit/", "single-pom" );
     }
 
-    private static ReleaseDescriptor createReleaseDescriptor() 
+    private static ReleaseDescriptor createReleaseDescriptor()
         throws IOException
     {
         ReleaseDescriptor descriptor = new ReleaseDescriptor();

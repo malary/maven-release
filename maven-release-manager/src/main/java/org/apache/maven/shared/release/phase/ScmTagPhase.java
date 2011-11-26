@@ -25,7 +25,6 @@ import java.util.List;
 import org.apache.maven.artifact.ArtifactUtils;
 import org.apache.maven.model.Scm;
 import org.apache.maven.project.MavenProject;
-
 import org.apache.maven.scm.ScmException;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.ScmTagParameters;
@@ -80,7 +79,6 @@ public class ScmTagPhase
             }
         }
 
-        logInfo( relResult, "Tagging release with the label " + releaseDescriptor.getScmReleaseLabel() + "..." );
 
         TagScmResult result = new TagScmResult(null, null, null, true);
         try
@@ -92,6 +90,8 @@ public class ScmTagPhase
                     // Get project key
                     MavenProject mavenProject = (MavenProject) reactorProjectsIter.next();
                     String projectKey = ArtifactUtils.versionlessKey( mavenProject.getGroupId(), mavenProject.getArtifactId() );
+
+                    logInfo( relResult, "Tagging release with the label " + releaseDescriptor.getScmReleaseLabel(projectKey) + "..." );
 
                     // Prepare parameters
                     String tagName = releaseDescriptor.getScmReleaseLabel(projectKey);
@@ -108,6 +108,8 @@ public class ScmTagPhase
                     result = doTag(projectReleaseDescriptor, releaseDescriptor, releaseEnvironment, tagName, scmTagParameters);
                 }
             } else {
+                logInfo( relResult, "Tagging release with the label " + releaseDescriptor.getScmReleaseLabel() + "..." );
+
                 // Prepare parameters
                 String tagName = releaseDescriptor.getScmReleaseLabel();
                 ScmTagParameters scmTagParameters = prepareScmTagParameters(releaseDescriptor, tagName);
@@ -209,7 +211,7 @@ public class ScmTagPhase
     private static void validateConfiguration( ReleaseDescriptor releaseDescriptor )
         throws ReleaseFailureException
     {
-        if ( releaseDescriptor.getScmReleaseLabel() == null )
+        if ( releaseDescriptor.getScmReleaseLabels().isEmpty() )
         {
             throw new ReleaseFailureException( "A release label is required for committing" );
         }

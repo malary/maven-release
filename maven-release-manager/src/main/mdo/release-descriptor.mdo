@@ -547,14 +547,15 @@
     }
 
     /**
-     * 
+     *
      *
      * @param projectId   the project's group and artifact ID
      * @param label       the scm release label to map to
      */
     public void mapScmReleaseLabel( String projectId, String label )
     {
-        if (scmReleaseLabels == null) {
+        if (scmReleaseLabels == null)
+        {
             scmReleaseLabels = new java.util.HashMap();
         }
 
@@ -569,14 +570,15 @@
     }
 
     /**
-     * 
+     *
      *
      * @param projectId   the project's group and artifact ID
      * @param label       the scm release label to map to
      */
     public String getScmReleaseLabel( String projectId )
     {
-        if (scmReleaseLabels == null) {
+        if (scmReleaseLabels == null)
+        {
             scmReleaseLabels = new java.util.HashMap();
         }
 
@@ -584,13 +586,14 @@
     }
 
     /**
-     * 
+     *
      * @param label       the scm release label to map to
      * @deprecated As of release 2.2, replaced by {@link #mapScmReleaseLabel(String, String)}
      */
     public void setScmReleaseLabel( String label )
     {
-        if (scmReleaseLabels == null) {
+        if (scmReleaseLabels == null)
+        {
             scmReleaseLabels = new java.util.HashMap();
         }
 
@@ -610,13 +613,14 @@
     }
 
     /**
-     * 
+     *
      * @param label       the scm release label to map to
      * @deprecated As of release 2.2, replaced by {@link #getScmReleaseLabel(String)}
      */
     public String getScmReleaseLabel()
     {
-        if (scmReleaseLabels == null) {
+        if (scmReleaseLabels == null)
+        {
             scmReleaseLabels = new java.util.HashMap();
         }
 
@@ -631,8 +635,7 @@
         }
         else
         {
-            return "???????????????????";
-            // throw new RuntimeException("Ambiguous default scm release label");
+            throw new RuntimeException("Ambiguous default scm release label");
         }
     }
 
