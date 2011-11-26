@@ -60,14 +60,14 @@ public class ScmTagPhase
      */
     private ScmRepositoryConfigurator scmRepositoryConfigurator;
 
-    public ReleaseResult execute( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
-                                  List reactorProjects )
+    public ReleaseResult execute( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List reactorProjects )
         throws ReleaseExecutionException, ReleaseFailureException
     {
         ReleaseResult relResult = new ReleaseResult();
 
         validateConfiguration( releaseDescriptor );
 
+        // MRELEASE-613
         if ( releaseDescriptor.getWaitBeforeTagging() > 0 )
         {
             logInfo( relResult, "Waiting for " + releaseDescriptor.getWaitBeforeTagging() + " seconds before tagging the release." );
@@ -85,110 +85,39 @@ public class ScmTagPhase
         TagScmResult result = new TagScmResult(null, null, null, true);
         try
         {
-            
+
             if (releaseDescriptor.isCommitByProject()) {
                 Iterator reactorProjectsIter = reactorProjects.iterator();
                 while (reactorProjectsIter.hasNext() && result.isSuccess()) {
+                    // Get project key
                     MavenProject mavenProject = (MavenProject) reactorProjectsIter.next();
-                    
                     String projectKey = ArtifactUtils.versionlessKey( mavenProject.getGroupId(), mavenProject.getArtifactId() );
-                    
-                    // TODO: want includes/excludes?
+
+                    // Prepare parameters
                     String tagName = releaseDescriptor.getScmReleaseLabel(projectKey);
-                    ScmTagParameters scmTagParameters =
-                        new ScmTagParameters( releaseDescriptor.getScmCommentPrefix() + " copy for tag " + tagName );
-                    scmTagParameters.setRemoteTagging( releaseDescriptor.isRemoteTagging() );
-                    scmTagParameters.setScmRevision( releaseDescriptor.getScmReleasedPomRevision() );
-                    if ( getLogger().isDebugEnabled() )
-                    {
-                        getLogger().debug(
-                            "ScmTagPhase :: scmTagParameters remotingTag " + releaseDescriptor.isRemoteTagging() );
-                        getLogger().debug(
-                            "ScmTagPhase :: scmTagParameters scmRevision " + releaseDescriptor.getScmReleasedPomRevision() );
-                    }
-                    
+                    ScmTagParameters scmTagParameters = prepareScmTagParameters(releaseDescriptor, tagName);
+
+                    // Prepare workdir, and source url
                     ReleaseDescriptor projectReleaseDescriptor = new ReleaseDescriptor();
                     projectReleaseDescriptor.setWorkingDirectory( mavenProject.getBasedir().getAbsolutePath() );
                     projectReleaseDescriptor.setScmSourceUrl(
                             ((Scm)releaseDescriptor.getOriginalScmInfo().get(projectKey)).getDeveloperConnection()
                     );
-                    
-                    ScmRepository repository;
-                    ScmProvider provider;
-                    try
-                    {
-                        repository =
-                            scmRepositoryConfigurator.getConfiguredRepository( projectReleaseDescriptor.getScmSourceUrl(),
-                                                                               releaseDescriptor,
-                                                                               releaseEnvironment.getSettings() );
 
-                        repository.getProviderRepository().setPushChanges( releaseDescriptor.isPushChanges() );
-
-                        provider = scmRepositoryConfigurator.getRepositoryProvider( repository );
-                    }
-                    catch ( ScmRepositoryException e )
-                    {
-                        throw new ReleaseScmRepositoryException( e.getMessage(), e.getValidationMessages() );
-                    }
-                    catch ( NoSuchScmProviderException e )
-                    {
-                        throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
-                    }
-                    
-                    ScmFileSet fileSet = new ScmFileSet( mavenProject.getBasedir() );
-
-                    if ( getLogger().isDebugEnabled() )
-                    {
-                        getLogger().debug( "ScmTagPhase :: fileSet  " + fileSet );
-                    }
-                    result = provider.tag( repository, fileSet, tagName, scmTagParameters );
+                    // Do the tag
+                    result = doTag(projectReleaseDescriptor, releaseDescriptor, releaseEnvironment, tagName, scmTagParameters);
                 }
             } else {
-                // TODO: want includes/excludes?
+                // Prepare parameters
                 String tagName = releaseDescriptor.getScmReleaseLabel();
-                ScmTagParameters scmTagParameters =
-                    new ScmTagParameters( releaseDescriptor.getScmCommentPrefix() + " copy for tag " + tagName );
-                scmTagParameters.setRemoteTagging( releaseDescriptor.isRemoteTagging() );
-                scmTagParameters.setScmRevision( releaseDescriptor.getScmReleasedPomRevision() );
-                if ( getLogger().isDebugEnabled() )
-                {
-                    getLogger().debug(
-                        "ScmTagPhase :: scmTagParameters remotingTag " + releaseDescriptor.isRemoteTagging() );
-                    getLogger().debug(
-                        "ScmTagPhase :: scmTagParameters scmRevision " + releaseDescriptor.getScmReleasedPomRevision() );
-                }
-            
+                ScmTagParameters scmTagParameters = prepareScmTagParameters(releaseDescriptor, tagName);
+
+                // Prepare workdir, and source url
                 ReleaseDescriptor basedirAlignedReleaseDescriptor =
                     ReleaseUtil.createBasedirAlignedReleaseDescriptor( releaseDescriptor, reactorProjects );
-                
-                ScmRepository repository;
-                ScmProvider provider;
-                try
-                {
-                    repository =
-                        scmRepositoryConfigurator.getConfiguredRepository( basedirAlignedReleaseDescriptor.getScmSourceUrl(),
-                                                                           releaseDescriptor,
-                                                                           releaseEnvironment.getSettings() );
 
-                    repository.getProviderRepository().setPushChanges( releaseDescriptor.isPushChanges() );
-
-                    provider = scmRepositoryConfigurator.getRepositoryProvider( repository );
-                }
-                catch ( ScmRepositoryException e )
-                {
-                    throw new ReleaseScmRepositoryException( e.getMessage(), e.getValidationMessages() );
-                }
-                catch ( NoSuchScmProviderException e )
-                {
-                    throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
-                }
-        
-                ScmFileSet fileSet = new ScmFileSet( new File( basedirAlignedReleaseDescriptor.getWorkingDirectory() ) );
-                if ( getLogger().isDebugEnabled() )
-                {
-                    getLogger().debug( "ScmTagPhase :: fileSet  " + fileSet );
-                }
-                result = provider.tag( repository, fileSet, tagName, scmTagParameters );
+                // Do the tag
+                result = doTag(basedirAlignedReleaseDescriptor, releaseDescriptor, releaseEnvironment, tagName, scmTagParameters);
             }
         }
         catch ( ScmException e )
@@ -206,8 +135,57 @@ public class ScmTagPhase
         return relResult;
     }
 
-    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
-                                   List reactorProjects )
+    private ScmTagParameters prepareScmTagParameters(ReleaseDescriptor releaseDescriptor, String tagName)
+    {
+        // TODO: want includes/excludes?
+        ScmTagParameters scmTagParameters = new ScmTagParameters();
+        scmTagParameters.setMessage( releaseDescriptor.getScmCommentPrefix() + " copy for tag " + tagName );
+        scmTagParameters.setRemoteTagging( releaseDescriptor.isRemoteTagging() );
+        scmTagParameters.setScmRevision( releaseDescriptor.getScmReleasedPomRevision() );
+
+        if ( getLogger().isDebugEnabled() )
+        {
+            getLogger().debug(
+                "ScmTagPhase :: scmTagParameters remotingTag " + releaseDescriptor.isRemoteTagging() );
+            getLogger().debug(
+                "ScmTagPhase :: scmTagParameters scmRevision " + releaseDescriptor.getScmReleasedPomRevision() );
+        }
+        return scmTagParameters;
+    }
+
+    private TagScmResult doTag(ReleaseDescriptor basedirAlignedReleaseDescriptor, ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, String tagName, ScmTagParameters scmTagParameters)
+            throws ReleaseScmRepositoryException, ReleaseExecutionException, ScmException
+    {
+        ScmRepository repository;
+        ScmProvider provider;
+        try
+        {
+            repository = scmRepositoryConfigurator.getConfiguredRepository( basedirAlignedReleaseDescriptor.getScmSourceUrl(), releaseDescriptor, releaseEnvironment.getSettings() );
+
+            repository.getProviderRepository().setPushChanges( releaseDescriptor.isPushChanges() );
+
+            provider = scmRepositoryConfigurator.getRepositoryProvider( repository );
+        }
+        catch ( ScmRepositoryException e )
+        {
+            throw new ReleaseScmRepositoryException( e.getMessage(), e.getValidationMessages() );
+        }
+        catch ( NoSuchScmProviderException e )
+        {
+            throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
+        }
+
+
+        ScmFileSet fileSet = new ScmFileSet( new File( basedirAlignedReleaseDescriptor.getWorkingDirectory() ) );
+        if ( getLogger().isDebugEnabled() )
+        {
+            getLogger().debug( "ScmTagPhase :: fileSet  " + fileSet );
+        }
+
+        return provider.tag( repository, fileSet, tagName, scmTagParameters );
+    }
+
+    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List reactorProjects )
         throws ReleaseExecutionException, ReleaseFailureException
     {
         ReleaseResult result = new ReleaseResult();
@@ -217,17 +195,12 @@ public class ScmTagPhase
         ReleaseDescriptor basedirAlignedReleaseDescriptor =
             ReleaseUtil.createBasedirAlignedReleaseDescriptor( releaseDescriptor, reactorProjects );
 
+        logInfo( result, "Full run would be tagging " + basedirAlignedReleaseDescriptor.getWorkingDirectory() );
         if ( releaseDescriptor.isRemoteTagging() )
         {
-            logInfo( result,
-                     "Full run would be tagging working copy " + basedirAlignedReleaseDescriptor.getWorkingDirectory() +
-                         " with label: '" + releaseDescriptor.getScmReleaseLabel() + "'" );
+            logInfo( result, "  To SCM URL: " + basedirAlignedReleaseDescriptor.getScmSourceUrl() );
         }
-        else
-        {
-            logInfo( result, "Full run would be tagging remotely " + basedirAlignedReleaseDescriptor.getScmSourceUrl() +
-                " with label: '" + releaseDescriptor.getScmReleaseLabel() + "'" );
-        }
+        logInfo( result, "  with label: '" + releaseDescriptor.getScmReleaseLabel() + "'" );
 
         result.setResultCode( ReleaseResult.SUCCESS );
 
