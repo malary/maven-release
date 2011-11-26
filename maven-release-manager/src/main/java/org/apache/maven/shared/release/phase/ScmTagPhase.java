@@ -137,7 +137,6 @@ public class ScmTagPhase
 
     private ScmTagParameters prepareScmTagParameters(ReleaseDescriptor releaseDescriptor, String tagName)
     {
-        // TODO: want includes/excludes?
         ScmTagParameters scmTagParameters = new ScmTagParameters();
         scmTagParameters.setMessage( releaseDescriptor.getScmCommentPrefix() + " copy for tag " + tagName );
         scmTagParameters.setRemoteTagging( releaseDescriptor.isRemoteTagging() );
@@ -175,7 +174,7 @@ public class ScmTagPhase
             throw new ReleaseExecutionException( "Unable to configure SCM repository: " + e.getMessage(), e );
         }
 
-
+        // TODO: want includes/excludes?
         ScmFileSet fileSet = new ScmFileSet( new File( basedirAlignedReleaseDescriptor.getWorkingDirectory() ) );
         if ( getLogger().isDebugEnabled() )
         {
