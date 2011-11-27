@@ -186,26 +186,59 @@ public class ScmTagPhase
         return provider.tag( repository, fileSet, tagName, scmTagParameters );
     }
 
-    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List reactorProjects )
+    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<MavenProject> reactorProjects )
         throws ReleaseExecutionException, ReleaseFailureException
     {
         ReleaseResult result = new ReleaseResult();
 
         validateConfiguration( releaseDescriptor );
 
-        ReleaseDescriptor basedirAlignedReleaseDescriptor =
-            ReleaseUtil.createBasedirAlignedReleaseDescriptor( releaseDescriptor, reactorProjects );
-
-        logInfo( result, "Full run would be tagging " + basedirAlignedReleaseDescriptor.getWorkingDirectory() );
-        if ( releaseDescriptor.isRemoteTagging() )
+        if (releaseDescriptor.isCommitByProject())
         {
-            logInfo( result, "  To SCM URL: " + basedirAlignedReleaseDescriptor.getScmSourceUrl() );
+            for (MavenProject mavenProject : reactorProjects) {
+                // Get project key
+                String projectKey = ArtifactUtils.versionlessKey( mavenProject.getGroupId(), mavenProject.getArtifactId() );
+
+                // Prepare workdir, and source url
+                ReleaseDescriptor projectReleaseDescriptor = new ReleaseDescriptor();
+                projectReleaseDescriptor.setWorkingDirectory( mavenProject.getBasedir().getAbsolutePath() );
+                projectReleaseDescriptor.setScmSourceUrl(
+                        ((Scm)releaseDescriptor.getOriginalScmInfo().get(projectKey)).getDeveloperConnection()
+                );
+
+                logSimulate(result,
+                    projectReleaseDescriptor.getWorkingDirectory(),
+                    releaseDescriptor.isRemoteTagging(),
+                    projectReleaseDescriptor.getScmSourceUrl(),
+                    releaseDescriptor.getScmReleaseLabel(projectKey));
+            }
         }
-        logInfo( result, "  with label: '" + releaseDescriptor.getScmReleaseLabel() + "'" );
+        else
+        {
+            ReleaseDescriptor basedirAlignedReleaseDescriptor =
+                ReleaseUtil.createBasedirAlignedReleaseDescriptor( releaseDescriptor, reactorProjects );
+
+            logSimulate(result, basedirAlignedReleaseDescriptor.getWorkingDirectory(),
+                    releaseDescriptor.isRemoteTagging(),
+                    basedirAlignedReleaseDescriptor.getScmSourceUrl(),
+                    releaseDescriptor.getScmReleaseLabel());
+        }
 
         result.setResultCode( ReleaseResult.SUCCESS );
 
         return result;
+    }
+
+    private void logSimulate(ReleaseResult result, String workdir, boolean remoteTagging, String scmSourceUrl, String label)
+    {
+        logInfo( result, "Full run would be tagging " + workdir );
+
+        if ( remoteTagging )
+        {
+            logInfo( result, "  To SCM URL: " + scmSourceUrl );
+        }
+
+        logInfo( result, "  with label: '" + label + "'" );
     }
 
     private static void validateConfiguration( ReleaseDescriptor releaseDescriptor )

@@ -193,19 +193,53 @@ public class ScmBranchPhase
 
         validateConfiguration( releaseDescriptor );
 
-        ReleaseDescriptor basedirAlignedReleaseDescriptor =
-            ReleaseUtil.createBasedirAlignedReleaseDescriptor( releaseDescriptor, reactorProjects );
 
-        logInfo( result, "Full run would be branching " + basedirAlignedReleaseDescriptor.getWorkingDirectory() );
-        if ( releaseDescriptor.isRemoteTagging() )
+        if (releaseDescriptor.isCommitByProject())
         {
-            logInfo( result, "  To SCM URL: " + basedirAlignedReleaseDescriptor.getScmBranchBase() );
+            for (MavenProject mavenProject : reactorProjects) {
+                // Get project key
+                String projectKey = ArtifactUtils.versionlessKey( mavenProject.getGroupId(), mavenProject.getArtifactId() );
+
+                // Prepare workdir, and source url
+                ReleaseDescriptor projectReleaseDescriptor = new ReleaseDescriptor();
+                projectReleaseDescriptor.setWorkingDirectory( mavenProject.getBasedir().getAbsolutePath() );
+                projectReleaseDescriptor.setScmSourceUrl(
+                        ((Scm)releaseDescriptor.getOriginalScmInfo().get(projectKey)).getDeveloperConnection()
+                );
+
+                logSimulate(result,
+                    projectReleaseDescriptor.getWorkingDirectory(),
+                    releaseDescriptor.isRemoteTagging(),
+                    projectReleaseDescriptor.getScmSourceUrl(),
+                    releaseDescriptor.getScmReleaseLabel(projectKey));
+            }
         }
-        logInfo( result, "  with label: '" + releaseDescriptor.getScmReleaseLabel() + "'" );
+        else
+        {
+            ReleaseDescriptor basedirAlignedReleaseDescriptor =
+                ReleaseUtil.createBasedirAlignedReleaseDescriptor( releaseDescriptor, reactorProjects );
+
+            logSimulate(result, basedirAlignedReleaseDescriptor.getWorkingDirectory(),
+                    releaseDescriptor.isRemoteTagging(),
+                    basedirAlignedReleaseDescriptor.getScmSourceUrl(),
+                    releaseDescriptor.getScmReleaseLabel());
+        }
 
         result.setResultCode( ReleaseResult.SUCCESS );
 
         return result;
+    }
+
+    private void logSimulate(ReleaseResult result, String workdir, boolean remoteTagging, String scmSourceUrl, String label)
+    {
+        logInfo( result, "Full run would be branching " + workdir );
+
+        if ( remoteTagging )
+        {
+            logInfo( result, "  To SCM URL: " + scmSourceUrl );
+        }
+
+        logInfo( result, "  with label: '" + label + "'" );
     }
 
     private static void validateConfiguration( ReleaseDescriptor releaseDescriptor )
