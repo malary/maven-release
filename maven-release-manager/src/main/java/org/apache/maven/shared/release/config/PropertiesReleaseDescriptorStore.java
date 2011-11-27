@@ -139,6 +139,10 @@ public class PropertiesReleaseDescriptorStore
         {
             properties.setProperty( "scm.branchBase", config.getScmBranchBase() );
         }
+        if ( config.getScmTagNameFormat() != null )
+        {
+            properties.setProperty( "scm.tagNameFormat", config.getScmTagNameFormat() );
+        }
         if ( config.getScmCommentPrefix() != null )
         {
             properties.setProperty( "scm.commentPrefix", config.getScmCommentPrefix() );
@@ -160,6 +164,9 @@ public class PropertiesReleaseDescriptorStore
             properties.setProperty( "completionGoals", config.getCompletionGoals() );
         }
 
+        properties.setProperty( "exec.snapshotReleasePluginAllowed",
+                                Boolean.toString( config.isSnapshotReleasePluginAllowed() ) );
+
         properties.setProperty( "remoteTagging", Boolean.toString( config.isRemoteTagging() ) );
 
         properties.setProperty( "pushChanges", Boolean.toString( config.isPushChanges() ) );
@@ -170,7 +177,7 @@ public class PropertiesReleaseDescriptorStore
             Map.Entry entry = (Map.Entry) i.next();
             properties.setProperty( "scm.tag." + entry.getKey(), (String) entry.getValue() );
         }
-        
+
         for ( Iterator i = config.getReleaseVersions().entrySet().iterator(); i.hasNext(); )
         {
             Map.Entry entry = (Map.Entry) i.next();
@@ -213,8 +220,8 @@ public class PropertiesReleaseDescriptorStore
             }
         }
 
-        if ( ( config.getResolvedSnapshotDependencies() != null ) &&
-            ( config.getResolvedSnapshotDependencies().size() > 0 ) )
+        if ( ( config.getResolvedSnapshotDependencies() != null )
+            && ( config.getResolvedSnapshotDependencies().size() > 0 ) )
         {
             processResolvedDependencies( properties, config.getResolvedSnapshotDependencies() );
         }

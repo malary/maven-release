@@ -59,7 +59,8 @@ public class ScmTagPhase
      */
     private ScmRepositoryConfigurator scmRepositoryConfigurator;
 
-    public ReleaseResult execute( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List reactorProjects )
+    public ReleaseResult execute( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
+                                  List<MavenProject> reactorProjects )
         throws ReleaseExecutionException, ReleaseFailureException
     {
         ReleaseResult relResult = new ReleaseResult();
@@ -69,12 +70,14 @@ public class ScmTagPhase
         // MRELEASE-613
         if ( releaseDescriptor.getWaitBeforeTagging() > 0 )
         {
-            logInfo( relResult, "Waiting for " + releaseDescriptor.getWaitBeforeTagging() + " seconds before tagging the release." );
+            logInfo( relResult, "Waiting for " + releaseDescriptor.getWaitBeforeTagging()
+                + " seconds before tagging the release." );
             try
             {
                 Thread.sleep( releaseDescriptor.getWaitBeforeTagging() * 1000 );
             }
-            catch( InterruptedException e ) {
+            catch ( InterruptedException e )
+            {
                 // Ignore
             }
         }
@@ -186,7 +189,8 @@ public class ScmTagPhase
         return provider.tag( repository, fileSet, tagName, scmTagParameters );
     }
 
-    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<MavenProject> reactorProjects )
+    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
+                                   List<MavenProject> reactorProjects )
         throws ReleaseExecutionException, ReleaseFailureException
     {
         ReleaseResult result = new ReleaseResult();

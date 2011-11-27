@@ -172,7 +172,8 @@ public class ReleaseUtil
         }
         catch ( IOException e )
         {
-        	throw new ReleaseExecutionException("Exception occurred while calculating common basedir: " + e.getMessage(), e);
+            throw new ReleaseExecutionException( "Exception occurred while calculating common basedir: "
+                + e.getMessage(), e );
         }
 
         int parentLevels =
@@ -216,9 +217,10 @@ public class ReleaseUtil
 
         String basedir = StringUtils.getCommonPrefix( baseDirs );
 
-        if ( !basedir.endsWith( separator ) )
+        int separatorPos = basedir.lastIndexOf( separator );
+        if ( !basedir.endsWith( separator ) && separatorPos >= 0 )
         {
-            basedir = basedir.substring( 0, basedir.lastIndexOf( separator ) );
+            basedir = basedir.substring( 0, separatorPos );
         }
 
         if ( basedir.endsWith( separator ) && basedir.length() > 1 )
@@ -277,7 +279,7 @@ public class ReleaseUtil
         return url;
     }
     
-    public static boolean isSymlink(File file) 
+    public static boolean isSymlink( File file )
         throws IOException
     {
         return !file.getAbsolutePath().equals( file.getCanonicalPath() );

@@ -59,7 +59,8 @@ public class ScmBranchPhase
      */
     private ScmRepositoryConfigurator scmRepositoryConfigurator;
 
-    public ReleaseResult execute( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<MavenProject> reactorProjects )
+    public ReleaseResult execute( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
+                                  List<MavenProject> reactorProjects )
         throws ReleaseExecutionException, ReleaseFailureException
     {
         ReleaseResult relResult = new ReleaseResult();
@@ -69,12 +70,14 @@ public class ScmBranchPhase
         // MRELEASE-613
         if ( releaseDescriptor.getWaitBeforeTagging() > 0 )
         {
-            logInfo( relResult, "Waiting for " + releaseDescriptor.getWaitBeforeTagging() + " seconds before branching the release." );
+            logInfo( relResult, "Waiting for " + releaseDescriptor.getWaitBeforeTagging()
+                + " seconds before branching the release." );
             try
             {
                 Thread.sleep( releaseDescriptor.getWaitBeforeTagging() * 1000 );
             }
-            catch( InterruptedException e ) {
+            catch ( InterruptedException e )
+            {
                 // Ignore
             }
         }
@@ -186,13 +189,13 @@ public class ScmBranchPhase
         return provider.branch( repository, fileSet, branchName, scmBranchParameters);
     }
 
-    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<MavenProject> reactorProjects )
+    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
+                                   List<MavenProject> reactorProjects )
         throws ReleaseExecutionException, ReleaseFailureException
     {
         ReleaseResult result = new ReleaseResult();
 
         validateConfiguration( releaseDescriptor );
-
 
         if (releaseDescriptor.isCommitByProject())
         {

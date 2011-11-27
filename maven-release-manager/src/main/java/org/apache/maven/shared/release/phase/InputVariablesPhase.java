@@ -35,8 +35,15 @@ import org.apache.maven.shared.release.scm.ScmRepositoryConfigurator;
 import org.apache.maven.shared.release.util.ReleaseUtil;
 import org.codehaus.plexus.components.interactivity.Prompter;
 import org.codehaus.plexus.components.interactivity.PrompterException;
+import org.codehaus.plexus.interpolation.InterpolationException;
+import org.codehaus.plexus.interpolation.Interpolator;
+import org.codehaus.plexus.interpolation.PrefixAwareRecursionInterceptor;
+import org.codehaus.plexus.interpolation.PrefixedPropertiesValueSource;
+import org.codehaus.plexus.interpolation.RecursionInterceptor;
+import org.codehaus.plexus.interpolation.StringSearchInterpolator;
 
 import java.util.List;
+import java.util.Properties;
 
 /**
  * Input any variables that were not yet configured.
@@ -71,7 +78,8 @@ public class InputVariablesPhase
     {
         try
         {
-            ScmRepository repository = scmRepositoryConfigurator.getConfiguredRepository( releaseDescriptor, releaseEnvironment.getSettings() );
+            ScmRepository repository =
+                scmRepositoryConfigurator.getConfiguredRepository( releaseDescriptor, releaseEnvironment.getSettings() );
 
             return scmRepositoryConfigurator.getRepositoryProvider( repository );
         }
@@ -86,7 +94,8 @@ public class InputVariablesPhase
         }
     }
 
-    public ReleaseResult execute( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<MavenProject> reactorProjects )
+    public ReleaseResult execute( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
+                                  List<MavenProject> reactorProjects )
         throws ReleaseExecutionException
     {
         ReleaseResult result = new ReleaseResult();
@@ -128,7 +137,32 @@ public class InputVariablesPhase
                 throw new ReleaseExecutionException( "Project tag cannot be selected if version is not yet mapped" );
             }
 
-            String defaultTag = project.getArtifactId() + "-" + releaseVersion;
+            String defaultTag;
+            String scmTagNameFormat = releaseDescriptor.getScmTagNameFormat();
+            if ( scmTagNameFormat != null )
+            {
+                Interpolator interpolator = new StringSearchInterpolator( "@{", "}" );
+                List<String> possiblePrefixes = java.util.Arrays.asList( "project", "pom" );
+                Properties values = new Properties();
+                values.setProperty( "artifactId", project.getArtifactId() );
+                values.setProperty( "groupId", project.getGroupId() );
+                values.setProperty( "version", releaseVersion );
+                interpolator.addValueSource( new PrefixedPropertiesValueSource( possiblePrefixes, values, true ) );
+                RecursionInterceptor recursionInterceptor = new PrefixAwareRecursionInterceptor( possiblePrefixes );
+                try
+                {
+                    defaultTag = interpolator.interpolate( scmTagNameFormat, recursionInterceptor );
+                }
+                catch ( InterpolationException e )
+                {
+                    throw new ReleaseExecutionException(
+                        "Could not interpolate specified tag name format: " + scmTagNameFormat, e );
+                }
+            }
+            else
+            {
+                defaultTag = project.getArtifactId() + "-" + releaseVersion;
+            }
 
             ScmProvider provider = null;
             try
@@ -147,8 +181,9 @@ public class InputVariablesPhase
             {
                 try
                 {
-                    tag = prompter.prompt( "What is SCM release tag or label for \"" + project.getName() + "\"? (" +
-                        project.getGroupId() + ":" + project.getArtifactId() + ")", defaultTag );
+                    tag =
+                        prompter.prompt( "What is SCM release tag or label for \"" + project.getName() + "\"? ("
+                            + project.getGroupId() + ":" + project.getArtifactId() + ")", defaultTag );
                 }
                 catch ( PrompterException e )
                 {
@@ -165,7 +200,8 @@ public class InputVariablesPhase
     }
     
 
-    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment, List<MavenProject> reactorProjects )
+    public ReleaseResult simulate( ReleaseDescriptor releaseDescriptor, ReleaseEnvironment releaseEnvironment,
+                                   List<MavenProject> reactorProjects )
         throws ReleaseExecutionException
     {
         ReleaseResult result = new ReleaseResult();
